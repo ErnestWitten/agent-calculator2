@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Калькулятор нагрузки поддержки</title>
+    <style>
+        .calculator {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h2>Калькулятор нагрузки агентов поддержки</h2>
+        <div class="form-group">
+            <label>Количество тикетов в месяц:</label>
+            <input type="number" id="tickets" placeholder="Введите количество тикетов">
+        </div>
+        <button onclick="calculateAgents()">Рассчитать</button>
+        
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        // Фиксированные параметры
+        const DEPARTMENT_MONTHLY_HOURS = 336; // 22 будня * 12ч + 8 выходных * 9ч
+        const WEEKLY_AGENT_HOURS = 35; // 40 часов - 5 часов перерывов (1ч/день * 5 дней)
+        const MONTHLY_AGENT_HOURS = WEEKLY_AGENT_HOURS * 4; // 140 часов в месяц
+
+        function calculateAgents() {
+            const tickets = parseInt(document.getElementById('tickets').value);
+            
+            if (!tickets || tickets <= 0) {
+                alert('Пожалуйста, введите корректное количество тикетов');
+                return;
+            }
+
+            // Расчет по тикетам
+            const ticketTimeHours = (tickets * 5) / 60;
+            const agentsByTickets = Math.ceil(ticketTimeHours / MONTHLY_AGENT_HOURS);
+            
+            // Минимальное количество по графику работы
+            const agentsBySchedule = Math.ceil(DEPARTMENT_MONTHLY_HOURS / MONTHLY_AGENT_HOURS);
+            
+            // Итоговое количество агентов
+            const agentsNeeded = Math.max(agentsByTickets, agentsBySchedule);
+            
+            // Форматирование вывода
+            const resultHTML = `
+                <h3>Результаты расчета:</h3>
+                <p>Необходимое количество агентов: <strong>${agentsNeeded}</strong></p>
+                <p>Расчетные показатели:</p>
+                <ul>
+                    <li>Общее время обработки: ${ticketTimeHours.toFixed(1)} ч</li>
+                    <li>Требуется по нагрузке: ${agentsByTickets} аг.</li>
+                    <li>Требуется по графику работы: ${agentsBySchedule} аг.</li>
+                </ul>
+                <p>Используемые параметры:</p>
+                <ul>
+                    <li>Часы работы отдела в месяц: ${DEPARTMENT_MONTHLY_HOURS} ч</li>
+                    <li>Доступное время агента в месяц: ${MONTHLY_AGENT_HOURS} ч</li>
+                    <li>SLA на ответ: 5 минут</li>
+                </ul>
+            `;
+            
+            document.getElementById('result').innerHTML = resultHTML;
+        }
+    </script>
+</body>
+</html>
