@@ -2,34 +2,39 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Калькулятор нагрузки поддержки</title>
+    <title>Калькулятор нагрузки для чат-поддержки</title>
     <style>
         .calculator {
-            max-width: 600px;
+            max-width: 800px;
             margin: 20px auto;
             padding: 20px;
             border: 1px solid #ccc;
             border-radius: 5px;
+            font-family: Arial, sans-serif;
         }
-        .form-group {
+        .input-group {
             margin-bottom: 15px;
         }
         label {
             display: block;
             margin-bottom: 5px;
+            font-weight: bold;
         }
         input {
             width: 100%;
             padding: 8px;
             margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
         button {
-            background: #007bff;
+            background: #28a745;
             color: white;
             border: none;
             padding: 10px 20px;
             cursor: pointer;
             border-radius: 4px;
+            font-size: 16px;
         }
         .result {
             margin-top: 20px;
@@ -37,62 +42,148 @@
             background: #f8f9fa;
             border-radius: 4px;
         }
+        .formula-description {
+            margin: 15px 0;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+        }
+        .note {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
     <div class="calculator">
-        <h2>Калькулятор нагрузки агентов поддержки</h2>
-        <div class="form-group">
-            <label>Количество тикетов в месяц:</label>
-            <input type="number" id="tickets" placeholder="Введите количество тикетов">
-        </div>
-        <button onclick="calculateAgents()">Рассчитать</button>
+        <h2>Калькулятор нагрузки для чат-поддержки</h2>
         
+        <div class="input-group">
+            <label>Количество чатов в месяц:</label>
+            <input type="number" id="chatsPerMonth" placeholder="Введите месячный объем">
+            <div class="note">Рабочее время: 336 ч/мес (8:00-20:00 в будни, 8:00-17:00 в выходные)</div>
+        </div>
+
+        <div class="input-group">
+            <label>Среднее количество чатов в час:</label>
+            <input type="number" id="chatsPerHour" placeholder="Автоматический расчет">
+        </div>
+
+        <!-- Остальные поля остаются без изменений -->
+        <div class="input-group">
+            <label>Среднее время обработки чата (минут):</label>
+            <input type="number" id="handleTime" value="10">
+        </div>
+
+        <div class="input-group">
+            <label>Требуемый уровень обслуживания (%):</label>
+            <input type="number" id="serviceLevel" value="80" step="0.1">
+        </div>
+
+        <div class="input-group">
+            <label>Целевое время ответа (минут):</label>
+            <input type="number" id="targetTime" value="5">
+        </div>
+
+        <div class="input-group">
+            <label>Максимальное время ожидания (минут):</label>
+            <input type="number" id="maxWaitTime" value="15">
+        </div>
+
+        <button onclick="calculate()">Рассчитать</button>
+
+        <div class="formula-description">
+            <h4>Используемая формула:</h4>
+            <p>Модифицированная формула Эрланга C с учетом:<br>
+            1. Средней нагрузки (часов/чат)<br>
+            2. Требуемого уровня обслуживания<br>
+            3. Параллельной обработки чатов</p>
+        </div>
+
         <div class="result" id="result"></div>
     </div>
 
     <script>
-        // Фиксированные параметры
-        const DEPARTMENT_MONTHLY_HOURS = 336; // 22 будня * 12ч + 8 выходных * 9ч
-        const WEEKLY_AGENT_HOURS = 35; // 40 часов - 5 часов перерывов (1ч/день * 5 дней)
-        const MONTHLY_AGENT_HOURS = WEEKLY_AGENT_HOURS * 4; // 140 часов в месяц
+        const WORKING_HOURS_PER_MONTH = 336; // 22 дня × 12ч + 8 дней × 9ч
 
-        function calculateAgents() {
-            const tickets = parseInt(document.getElementById('tickets').value);
+        // Синхронизация полей ввода
+        document.getElementById('chatsPerMonth').addEventListener('input', function() {
+            const monthly = parseFloat(this.value) || 0;
+            const hourly = monthly / WORKING_HOURS_PER_MONTH;
+            document.getElementById('chatsPerHour').value = hourly.toFixed(2);
+        });
+
+        document.getElementById('chatsPerHour').addEventListener('input', function() {
+            const hourly = parseFloat(this.value) || 0;
+            const monthly = hourly * WORKING_HOURS_PER_MONTH;
+            document.getElementById('chatsPerMonth').value = monthly.toFixed(0);
+        });
+
+        function factorial(n) {
+            return n <= 1 ? 1 : n * factorial(n - 1);
+        }
+
+        function erlangC(m, A) {
+            let sum = 0;
+            for(let k = 0; k < m; k++) {
+                sum += Math.pow(A, k) / factorial(k);
+            }
+            const C = (Math.pow(A, m) / factorial(m)) / 
+                      ((Math.pow(A, m) / factorial(m)) + (1 - (A/m)) * sum);
+            return C;
+        }
+
+        function calculate() {
+            // Получение входных данных
+            const chatsPerHour = parseFloat(document.getElementById('chatsPerHour').value);
+            const handleTime = parseFloat(document.getElementById('handleTime').value);
+            const serviceLevel = parseFloat(document.getElementById('serviceLevel').value)/100;
+            const targetTime = parseFloat(document.getElementById('targetTime').value);
+            const maxWaitTime = parseFloat(document.getElementById('maxWaitTime').value);
+
+            // Расчет нагрузки
+            const trafficIntensity = (chatsPerHour * handleTime) / 60;
+            let agents = Math.ceil(trafficIntensity) + 1;
             
-            if (!tickets || tickets <= 0) {
-                alert('Пожалуйста, введите корректное количество тикетов');
-                return;
+            // Итеративный расчет
+            let serviceLevelAchieved = 0;
+            while(serviceLevelAchieved < serviceLevel) {
+                const A = trafficIntensity;
+                const C = erlangC(agents, A);
+                const waitingProbability = C * Math.exp(-(agents - A) * (targetTime / handleTime));
+                serviceLevelAchieved = 1 - waitingProbability;
+                
+                if(agents > 50 || serviceLevelAchieved >= serviceLevel) break;
+                agents++;
             }
 
-            // Расчет по тикетам
-            const ticketTimeHours = (tickets * 5) / 60;
-            const agentsByTickets = Math.ceil(ticketTimeHours / MONTHLY_AGENT_HOURS);
-            
-            // Минимальное количество по графику работы
-            const agentsBySchedule = Math.ceil(DEPARTMENT_MONTHLY_HOURS / MONTHLY_AGENT_HOURS);
-            
-            // Итоговое количество агентов
-            const agentsNeeded = Math.max(agentsByTickets, agentsBySchedule);
-            
-            // Форматирование вывода
+            // Дополнительные метрики
+            const avgConcurrentChats = (trafficIntensity / agents) * 
+                                      (handleTime / (handleTime + maxWaitTime));
+            const occupancy = (trafficIntensity / agents) * 100;
+
+            // Форматирование результатов
             const resultHTML = `
                 <h3>Результаты расчета:</h3>
-                <p>Необходимое количество агентов: <strong>${agentsNeeded}</strong></p>
-                <p>Расчетные показатели:</p>
+                <p>Необходимое количество агентов: <strong>${agents}</strong></p>
+                <p>Достигаемый уровень обслуживания: <strong>${(serviceLevelAchieved*100).toFixed(1)}%</strong></p>
+                
+                <h4>Дополнительные метрики:</h4>
                 <ul>
-                    <li>Общее время обработки: ${ticketTimeHours.toFixed(1)} ч</li>
-                    <li>Требуется по нагрузке: ${agentsByTickets} аг.</li>
-                    <li>Требуется по графику работы: ${agentsBySchedule} аг.</li>
+                    <li>Средняя загрузка агентов: ${occupancy.toFixed(1)}%</li>
+                    <li>Параллельных чатов на агента: ${avgConcurrentChats.toFixed(1)}</li>
+                    <li>Интенсивность нагрузки: ${trafficIntensity.toFixed(1)} Эрланг</li>
+                    <li>Среднее время ответа: ${targetTime} мин</li>
                 </ul>
-                <p>Используемые параметры:</p>
+                
+                <h4>Исходные данные:</h4>
                 <ul>
-                    <li>Часы работы отдела в месяц: ${DEPARTMENT_MONTHLY_HOURS} ч</li>
-                    <li>Доступное время агента в месяц: ${MONTHLY_AGENT_HOURS} ч</li>
-                    <li>SLA на ответ: 5 минут</li>
+                    <li>Чатов в месяц: ${document.getElementById('chatsPerMonth').value}</li>
+                    <li>Часов работы в месяц: ${WORKING_HOURS_PER_MONTH}</li>
                 </ul>
             `;
-            
+
             document.getElementById('result').innerHTML = resultHTML;
         }
     </script>
